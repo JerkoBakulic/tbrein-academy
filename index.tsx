@@ -24,47 +24,62 @@ import {
 // URL del Google Sheet en formato CSV
 const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1LUnv2smD4yjo5qJy7VQCbrbgSHuF2iw2QZVt5KmpR2s/export?format=csv&gid=0';
 
-// Función para parsear CSV y convertir a array de videos
+// Función mejorada para parsear CSV
 function parseCSVToVideos(csvText: string) {
-  const lines = csvText.trim().split('\n');
-  const videos = [];
+    const lines = csvText.trim().split('\n');
+    const videos = [];
 
-  // Saltar la primera línea (headers)
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
+    console.log('📊 Total lines in CSV:', lines.length);
 
-    // Parsear CSV (considerando que puede haber comas dentro de comillas)
-    const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-    if (!matches || matches.length < 4) continue;
+    // Saltar la primera línea (headers)
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
 
-    const id = parseInt(matches[0].replace(/"/g, '').trim());
-    const title = matches[1].replace(/"/g, '').trim();
-    const url = matches[3].replace(/"/g, '').trim();
-    const duration = matches[4] ? matches[4].replace(/"/g, '').trim() : '';
+        // Split simple por comas
+        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
 
-    // Solo agregar si tiene título y URL válidos
-    if (title && url && url.includes('drive.google.com') && !isNaN(id)) {
-      // Convertir duración de formato HH:MM a "X min"
-      let durationText = duration;
-      if (duration && duration.includes(':')) {
-        const parts = duration.split(':');
-        const minutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-        durationText = `${minutes} min`;
-      }
+        if (parts.length < 4) {
+            console.log(`⚠️ Line ${i} skipped - not enough columns:`, parts.length);
+            continue;
+        }
 
-      videos.push({
-        id,
-        title,
-        summary: `Capacitación: ${title}`,
-        url,
-        duration: durationText || 'N/A'
-      });
+        const id = parseInt(parts[0]);
+        const title = parts[1];
+        const url = parts[3]; // Columna D
+        const duration = parts[4] || ''; // Columna E
+
+        console.log(`Line ${i}: ID=${id}, Title="${title}", URL="${url.substring(0, 30)}..."`)
+            ;
+
+        // Solo agregar si tiene título y URL válidos
+        if (title && url && url.includes('drive.google.com') && !isNaN(id)) {
+            // Convertir duración
+            let durationText = duration;
+            if (duration && duration.includes(':')) {
+                const timeParts = duration.split(':');
+                const minutes = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
+                durationText = `${minutes} min`;
+            }
+
+            videos.push({
+                id,
+                title,
+                summary: `Capacitación: ${title}`,
+                url,
+                duration: durationText || 'N/A'
+            });
+
+            console.log(`✅ Added video ${id}: ${title}`);
+        } else {
+            console.log(`❌ Skipped line ${i}: title="${title}", url valid=${url?.includes('drive.google.com')}, id valid=${!isNaN(id)}`);
+        }
     }
-  }
 
-  return videos;
+    console.log(`🎉 Total videos loaded: ${videos.length}`);
+    return videos;
 }
+
 
 // Estado inicial vacío, se cargará desde Google Sheets
 const initialVideosData: Array<{ id: number, title: string, summary: string, url: string, duration: string }> = [];
