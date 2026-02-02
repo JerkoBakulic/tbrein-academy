@@ -20,21 +20,58 @@ import {
   RotateCcw
 } from 'lucide-react';
 
-// --- DATOS REALES ---
-const videosData = [
-  { id: 1, title: "Proceso de trabajo", summary: "Aprende el flujo de trabajo estándar de TBREIN.", url: "https://drive.google.com/file/d/1NmUlpSKAUF8xiWlwlqbPvkPClq9_XU0S/view", duration: "20 min" },
-  { id: 2, title: "Compartido de ventas", summary: "Guía sobre la gestión de prospectos.", url: "https://drive.google.com/file/d/1uv5FXrlbRepbIZvUgw4HK5ebYLrtP8a1/view", duration: "9 min" },
-  { id: 3, title: "Historia de AIS", summary: "Aprendizajes que forjaron nuestra identidad.", url: "https://drive.google.com/file/d/14m7ZWWRGVFgssnUACtwBCphzxi9CH-I0/view", duration: "15 min" },
-  { id: 4, title: "Estandarización de RUTs", summary: "Manual técnico para validación de documentos.", url: "https://drive.google.com/file/d/1IQHzT8jiteeXQ4AbFZ23oM3QDXQpAo9J/view", duration: "10 min" },
-  { id: 5, title: "Creación de buyer persona", summary: "Metodología para definir el cliente ideal.", url: "https://drive.google.com/file/d/16sstbzrtiVzI6g8pdDayVNjFYdV8vfm2/view", duration: "12 min" },
-  { id: 6, title: "Analizar tablero de Buyer persona", summary: "Interpretación de métricas y dashboards.", url: "https://drive.google.com/file/d/1LbK2YRHDAOT27b3TONmzmCcAPYhaE78W/view", duration: "8 min" },
-  { id: 7, title: "Cómo hacer clones", summary: "Técnicas de duplicación de audiencias.", url: "https://drive.google.com/file/d/1ybDWYsjsXzYlDpwH0Nl1U7Ih4C061fYd/view", duration: "14 min" },
-  { id: 8, title: "Plataforma - Avanzado", summary: "Herramientas avanzadas de TBREIN.", url: "https://drive.google.com/file/d/13H4uzlSuW2f-Azg_Idm2SdL5S6_rb3vO/view", duration: "25 min" },
-  { id: 9, title: "Carga de clones en Meta - Parte I", summary: "Configuración inicial en Facebook Ads.", url: "https://drive.google.com/file/d/1va7dT-xrW9VHf4YHN6872sRr2h_M9lox/view", duration: "18 min" },
-  { id: 10, title: "Carga de clones en Meta - Parte II", summary: "Optimización de presupuestos y ROI.", url: "https://drive.google.com/file/d/1zkh6_2cy_FysGrKHjoFt9y93R6fRM9Lb/view", duration: "16 min" },
-  { id: 11, title: "Dashboard de gestión de clientes", summary: "Seguimiento del embudo de ventas.", url: "https://drive.google.com/file/d/1oZw5yMyL2bVdXrNr_f9TyPWFl73QvolX/view", duration: "11 min" },
-  { id: 12, title: "Cómo encontrar nuestras campañas", summary: "Guía rápida de localización de activos.", url: "https://drive.google.com/file/d/16JCwHRM1dBoiJlGCMoIHSY2Ix7w7nsyr/view", duration: "7 min" }
-];
+// --- GOOGLE SHEETS INTEGRATION ---
+// URL del Google Sheet en formato CSV
+const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1LUnv2smD4yjo5qJy7VQCbrbgSHuF2iw2QZVt5KmpR2s/export?format=csv&gid=0';
+
+// Función para parsear CSV y convertir a array de videos
+function parseCSVToVideos(csvText: string) {
+  const lines = csvText.trim().split('\n');
+  const videos = [];
+
+  // Saltar la primera línea (headers)
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue;
+
+    // Parsear CSV (considerando que puede haber comas dentro de comillas)
+    const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+    if (!matches || matches.length < 4) continue;
+
+    const id = parseInt(matches[0].replace(/"/g, '').trim());
+    const title = matches[1].replace(/"/g, '').trim();
+    const url = matches[3].replace(/"/g, '').trim();
+    const duration = matches[4] ? matches[4].replace(/"/g, '').trim() : '';
+
+    // Solo agregar si tiene título y URL válidos
+    if (title && url && url.includes('drive.google.com') && !isNaN(id)) {
+      // Convertir duración de formato HH:MM a "X min"
+      let durationText = duration;
+      if (duration && duration.includes(':')) {
+        const parts = duration.split(':');
+        const minutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        durationText = `${minutes} min`;
+      }
+
+      videos.push({
+        id,
+        title,
+        summary: `Capacitación: ${title}`,
+        url,
+        duration: durationText || 'N/A'
+      });
+    }
+  }
+
+  return videos;
+}
+
+// Estado inicial vacío, se cargará desde Google Sheets
+const initialVideosData: Array<{ id: number, title: string, summary: string, url: string, duration: string }> = [];
+
+// Tipo para Video
+type Video = { id: number, title: string, summary: string, url: string, duration: string };
+
 
 // Credenciales de acceso (puedes cambiarlas aquí)
 const VALID_CREDENTIALS = {
@@ -164,9 +201,9 @@ const Header: React.FC<{ user: string, onLogout: () => void }> = ({ user, onLogo
 );
 
 const VideoCard: React.FC<{
-  video: typeof videosData[0],
+  video: Video,
   isCompleted: boolean,
-  onOpen: (v: typeof videosData[0]) => void
+  onOpen: (v: Video) => void
 }> = ({ video, isCompleted, onOpen }) => {
   return (
     <div className="group bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm transition-all hover:shadow-xl hover:border-[#FF6B00]/40 flex flex-col h-full hover:-translate-y-1 duration-300">
@@ -206,7 +243,7 @@ const VideoCard: React.FC<{
   );
 };
 
-const PlayerModal: React.FC<{ video: typeof videosData[0], onClose: () => void, onFinish: () => void }> = ({ video, onClose, onFinish }) => {
+const PlayerModal: React.FC<{ video: Video, onClose: () => void, onFinish: () => void }> = ({ video, onClose, onFinish }) => {
   const embedUrl = getPreviewUrl(video.url);
 
   return (
@@ -354,9 +391,32 @@ const App = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [activeVideo, setActiveVideo] = useState<typeof videosData[0] | null>(null);
+  // Estado para videos cargados desde Google Sheets
+  const [videosData, setVideosData] = useState<Array<{ id: number, title: string, summary: string, url: string, duration: string }>>(initialVideosData);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(true);
+
+  const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   const [showCongrats, setShowCongrats] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Cargar videos desde Google Sheets al montar el componente
+  useEffect(() => {
+    const loadVideos = async () => {
+      try {
+        const response = await fetch(GOOGLE_SHEET_CSV_URL);
+        const csvText = await response.text();
+        const videos = parseCSVToVideos(csvText);
+        setVideosData(videos);
+      } catch (error) {
+        console.error('Error loading videos from Google Sheets:', error);
+        // Fallback: usar datos vacíos o mostrar error
+      } finally {
+        setIsLoadingVideos(false);
+      }
+    };
+
+    loadVideos();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('tbrein_v6', JSON.stringify(completedVideos));
@@ -394,6 +454,18 @@ const App = () => {
 
   if (!currentUser) {
     return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  // Mostrar loading mientras se cargan los videos
+  if (isLoadingVideos) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-[#FF6B00] mx-auto mb-4" size={48} />
+          <p className="text-gray-600 font-medium">Cargando videos...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -42,7 +42,19 @@ npm run build
 
 ## 📝 Configuración
 
-Los videos se configuran en el archivo `index.tsx` en el array `videosData`.
+### Videos desde Google Sheets
+
+Los videos se cargan automáticamente desde un Google Sheet. Para actualizar los videos:
+
+1. Edita el Google Sheet: [TBREIN Academy Videos](https://docs.google.com/spreadsheets/d/1LUnv2smD4yjo5qJy7VQCbrbgSHuF2iw2QZVt5KmpR2s/edit)
+2. **Formato requerido:**
+   - Columna A: Número (ID)
+   - Columna B: Título
+   - Columna D: Link de Google Drive
+   - Columna E: Duración (formato HH:MM o "X min")
+3. Los cambios se reflejarán automáticamente al recargar la aplicación
+
+**Nota:** El Google Sheet debe estar configurado con permisos de lectura pública.
 
 ## 🌐 Deploy
 
